@@ -1,3 +1,5 @@
+/output
+/ckpt
 .DS_Store
 masters_env/
 benchmarks/
