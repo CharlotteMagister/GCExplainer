@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import pickle
 import networkx as nx
 
-from torch_geometric.nn import MessagePassing, GCNConv, DenseGCNConv
+from torch_geometric.nn import MessagePassing, GCNConv, DenseGCNConv, GINConv, GraphConv
 from torch_geometric.utils import add_self_loops, degree
 from torch_geometric.nn import global_mean_pool, GlobalAttention
 
@@ -84,19 +84,118 @@ class Pool(torch.nn.Module):
 
 # Learned from: https://colab.research.google.com/drive/1I8a0DfQ3fI7Njc62__mVXUlcAleUclnb?usp=sharingand
 
+# class Mutag_GCN(torch.nn.Module):
+#     def __init__(self, num_node_features, num_classes):
+#         super(Mutag_GCN, self).__init__()
+#
+#         num_hidden_units = 32
+#         self.nn0 = nn.Sequential(nn.Linear(num_node_features, num_hidden_units), nn.ReLU(), nn.Linear(num_hidden_units, num_hidden_units))
+#         self.nn1 = nn.Sequential(nn.Linear(num_hidden_units, num_hidden_units), nn.ReLU(), nn.Linear(num_hidden_units, num_hidden_units))
+#         self.nn2 = nn.Sequential(nn.Linear(num_hidden_units, num_hidden_units), nn.ReLU(), nn.Linear(num_hidden_units, num_hidden_units))
+#
+#         self.conv0 = GINConv(self.nn0)
+#         self.conv1 = GINConv(self.nn1)
+#         self.conv2 = GINConv(self.nn2)
+#
+#         # self.conv0 = GCNConv(num_node_features, num_hidden_units)
+#         # self.conv1 = GCNConv(num_hidden_units, num_hidden_units)
+#         # self.conv2 = GCNConv(num_hidden_units, num_hidden_units)
+#
+#         # self.pool0 = GlobalAttention(nn.Linear(num_hidden_units, 1))
+#         # self.pool1 = GlobalAttention(nn.Linear(num_hidden_units, 1))
+#         # self.pool2 = GlobalAttention(nn.Linear(num_hidden_units, 1))
+#
+#         self.pool0 = Pool()
+#         self.pool1 = Pool()
+#         self.pool2 = Pool()
+#
+#         self.lin = nn.Linear(num_hidden_units, num_classes)
+#
+#     def forward(self, x, edge_index, batch):
+#         # 1. Obtain node embeddings
+#         x = self.conv0(x, edge_index)
+#         x = F.relu(x)
+#
+#         _ = self.pool0(x, batch)
+#
+#         x = self.conv1(x, edge_index)
+#         x = F.relu(x)
+#
+#         _ = self.pool1(x, batch)
+#
+#         x = self.conv2(x, edge_index)
+#         x = F.relu(x)
+#
+#         x = self.pool2(x, batch)
+#
+#         x = F.dropout(x, p=0.5, training=self.training)
+#         x = self.lin(x)
+#
+#         self.last = x
+#
+#         return x
+
+
 class Mutag_GCN(torch.nn.Module):
     def __init__(self, num_node_features, num_classes):
         super(Mutag_GCN, self).__init__()
 
-        num_hidden_units = 256
+        num_hidden_units = 30
         self.conv0 = GCNConv(num_node_features, num_hidden_units)
         self.conv1 = GCNConv(num_hidden_units, num_hidden_units)
         self.conv2 = GCNConv(num_hidden_units, num_hidden_units)
         self.conv3 = GCNConv(num_hidden_units, num_hidden_units)
+        # self.conv4 = GCNConv(num_hidden_units, num_hidden_units)
+        # self.conv5 = GCNConv(num_hidden_units, num_hidden_units)
+        # self.conv6 = GCNConv(num_hidden_units, num_hidden_units)
 
-        # self.pool0 = GlobalAttention(nn.Linear(num_hidden_units, 1))
-        # self.pool1 = GlobalAttention(nn.Linear(num_hidden_units, 1))
-        # self.pool2 = GlobalAttention(nn.Linear(num_hidden_units, 1))
+        self.pool0 = Pool()
+        self.pool1 = Pool()
+        self.pool2 = Pool()
+        self.pool3 = Pool()
+        # self.pool4 = Pool()
+        # self.pool5 = Pool()
+        # self.pool6 = Pool()
+
+        self.lin = nn.Linear(num_hidden_units, num_classes)
+
+    def forward(self, x, edge_index, batch):
+        # 1. Obtain node embeddings
+        x = self.conv0(x, edge_index)
+        x = F.relu(x)
+
+        _ = self.pool0(x, batch)
+
+        x = self.conv1(x, edge_index)
+        x = F.relu(x)
+
+        _ = self.pool1(x, batch)
+
+        x = self.conv2(x, edge_index)
+        x = F.relu(x)
+
+        _ = self.pool2(x, batch)
+
+        x = self.conv3(x, edge_index)
+        # x = F.relu(x)
+
+        x = self.pool3(x, batch)
+
+        # x = F.dropout(x, p=0.5, training=self.training)
+        x = self.lin(x)
+
+        return x
+
+
+class Reddit_GCN(torch.nn.Module):
+    def __init__(self, num_node_features, num_classes):
+        super(Reddit_GCN, self).__init__()
+
+        num_hidden_units = 30
+        self.conv0 = GCNConv(num_node_features, num_hidden_units)
+        self.conv1 = GCNConv(num_hidden_units, num_hidden_units)
+        self.conv2 = GCNConv(num_hidden_units, num_hidden_units)
+        self.conv3 = GCNConv(num_hidden_units, num_hidden_units)
 
         self.pool0 = Pool()
         self.pool1 = Pool()
@@ -123,49 +222,11 @@ class Mutag_GCN(torch.nn.Module):
         _ = self.pool2(x, batch)
 
         x = self.conv3(x, edge_index)
-        x = F.relu(x)
+        # x = F.relu(x)
 
         x = self.pool3(x, batch)
 
-        x = F.dropout(x, p=0.5, training=self.training)
-        x = self.lin(x)
-
-        return x
-
-
-class Reddit_GCN(torch.nn.Module):
-    def __init__(self, num_node_features, num_classes):
-        super(Reddit_GCN, self).__init__()
-
-        num_hidden_units = 32
-        self.conv0 = GCNConv(num_node_features, num_hidden_units)
-        self.conv1 = GCNConv(num_hidden_units, num_hidden_units)
-        self.conv2 = GCNConv(num_hidden_units, num_hidden_units)
-
-        self.pool0 = Pool()
-        self.pool1 = Pool()
-        self.pool2 = Pool()
-
-        self.lin = nn.Linear(num_hidden_units, num_classes)
-
-    def forward(self, x, edge_index, batch):
-        # 1. Obtain node embeddings
-        x = self.conv0(x, edge_index)
-        x = F.relu(x)
-
-        _ = self.pool0(x, batch)
-
-        x = self.conv1(x, edge_index)
-        x = F.relu(x)
-
-        _ = self.pool1(x, batch)
-
-        x = self.conv2(x, edge_index)
-        x = F.relu(x)
-
-        x = self.pool2(x, batch)
-
-        x = F.dropout(x, p=0.5, training=self.training)
+        # x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin(x)
 
         return x
@@ -305,7 +366,8 @@ def train_graph_class(model, train_loader, test_loader, full_loader, epochs, lr,
     # register hooks to track activation
     model = register_hooks(model)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss()
+    criterion = nn.BCEWithLogitsLoss()
 
     # list of accuracies
     train_accuracies, test_accuracies, train_loss, test_loss = list(), list(), list(), list()
@@ -320,25 +382,17 @@ def train_graph_class(model, train_loader, test_loader, full_loader, epochs, lr,
 
             optimizer.zero_grad()
 
-            # # edges = torch.tensor(nx.to_numpy_matrix(G), requires_grad=True, dtype=torch.float)
-            # E = data.edge_index.transpose(0, 1).detach().numpy()
-            # print(E)
-            # size = len(set([n for e in E for n in e]))
-            # # make an empty adjacency list
-            # adjacency = [[0]*size for _ in range(size)]
-            # # populate the list for each edge
-            #
-            # for sink, source in E:
-            #     adjacency[sink][source] = 1
-            #
-            # adj = torch.tensor(adjacency, requires_grad=True, dtype=torch.float)
-            #
-            # out = model(data.x, adj, data.batch)
-
             out = model(data.x, data.edge_index, data.batch)
 
             # calculate loss
-            loss = criterion(out, data.y)
+            one_hot = torch.nn.functional.one_hot(data.y, num_classes=2).type_as(out)
+            if out.shape[1] == 1 or one_hot.shape[1] == 1:
+                print("What ", out.shape)
+                print(out)
+                print("What2 ", data.y.shape, " ", one_hot.shape)
+                print(data.y)
+                print(one_hot)
+            loss = criterion(out, one_hot)
             loss.backward()
             # torch.nn.utils.clip_grad_norm_(model.parameters(), 2.0)
 
@@ -356,21 +410,26 @@ def train_graph_class(model, train_loader, test_loader, full_loader, epochs, lr,
         train_accuracies.append(train_acc)
         test_accuracies.append(test_acc)
 
-
         # get testing loss
         test_running_loss = 0
         test_num_batches = 0
         for data in test_loader:
             out = model(data.x, data.edge_index, data.batch)
-            test_running_loss += criterion(out, data.y).item()
+            one_hot = torch.nn.functional.one_hot(data.y, num_classes=2).type_as(out)
+            if out.shape[1] == 1 or one_hot.shape[1] == 1:
+                print("What ", out.shape)
+                print(out)
+                print("What2 ", data.y.shape, " ", one_hot.shape)
+                print(data.y)
+                print(one_hot)
+            test_running_loss += criterion(out, one_hot).item()
             test_num_batches += 1
-
 
         train_loss.append(running_loss / num_batches)
         test_loss.append(test_running_loss / test_num_batches)
 
         print('Epoch: {:03d}, Train Loss: {:.5f}, Test Loss: {:.5f}, Train Acc: {:.5f}, Test Acc: {:.5f}'.
-                  format(epoch, train_loss[-1], test_loss[-1], train_acc, test_acc), end = "\r")
+                  format(epoch, train_loss[-1], test_loss[-1], train_acc, test_acc))
 
     # plut accuracy graph
     plt.plot(train_accuracies, label="Train accuracy")

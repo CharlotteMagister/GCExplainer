@@ -20,42 +20,50 @@ import sklearn.metrics as metrics
 import seaborn as sn
 
 class ActivationClassifier():
-    def __init__(self, data, clustering_model, classifier_type, x, y, edge_list, layer, if_graph_class=False):
-        self.data = data
+    def __init__(self, pred_data, clustering_model, classifier_type, train_x, train_y, test_x, test_y, edge_list, layer, if_graph_class=False):
+        self.pred_data = pred_data
         self.clustering_model = clustering_model
         self.classifier_type = classifier_type
 
         if if_graph_class:
-            self.x = x
+            self.train_x = train_x
+            self.test_x = test_x
         else:
-            self.x = x.detach().numpy()
+            self.train_x = train_x.detach().numpy()
+            self.test_x = test_x.detach().numpy()
 
-        self.y = y.detach().numpy()
+        self.train_y = train_y.detach().numpy()
+        self.test_y = test_y.detach().numpy()
+
         self.edge_list = edge_list
         self.layer = layer
         self.if_graph_class = if_graph_class
 
         if isinstance(self.clustering_model, AgglomerativeClustering):
-            self.y_hc = self.clustering_model.fit_predict(self.data)
+            self.y_hc = self.clustering_model.fit_predict(self.pred_data)
 
         self.classifier, self.accuracy = self._train_classifier()
 
 
     def _train_classifier(self):
-        self.concepts = []
+        self.train_concepts = []
+        self.test_concepts = []
 
-        for node_idx in range(len(self.x)):
-            self.concepts.append([self.activation_to_concept(node_idx)])
+        for node_idx in range(len(self.train_x)):
+            self.train_concepts.append([self.activation_to_concept(node_idx)])
 
         if self.classifier_type == 'decision_tree':
             cls = tree.DecisionTreeClassifier()
-            cls = cls.fit(self.concepts, self.y)
+            cls = cls.fit(self.train_concepts, self.train_y)
         elif self.classifier_type == 'logistic_regression':
             cls = linear_model.LogisticRegression()
-            cls = cls.fit(self.concepts, self.y)
+            cls = cls.fit(self.train_concepts, self.train_y)
+
+        for node_idx in range(len(self.test_x)):
+            self.test_concepts.append([self.activation_to_concept(node_idx)])
 
         # decision tree accuracy
-        accuracy = cls.score(self.concepts, self.y)
+        accuracy = cls.score(self.test_concepts, self.test_y)
 
         return cls, accuracy
 
@@ -67,7 +75,7 @@ class ActivationClassifier():
     def _activation_to_cluster(self, node):
         # apply tsne
         if isinstance(self.clustering_model, KMeans):
-            cluster = self.clustering_model.predict(self.data)
+            cluster = self.clustering_model.predict(self.pred_data)
             cluster = cluster[node]
 
         elif isinstance(self.clustering_model, AgglomerativeClustering):
@@ -107,9 +115,9 @@ class ActivationClassifier():
 
         elif self.classifier_type == 'logistic_regression':
             fig, ax = plt.subplots(figsize=(6, 6))
-            pred = self.classifier.predict(self.concepts)
-            ls = np.unique(self.y)
-            confusion_matrix = metrics.confusion_matrix(self.y, pred, labels=ls)
+            pred = self.classifier.predict(self.test_concepts)
+            ls = np.unique(self.test_y)
+            confusion_matrix = metrics.confusion_matrix(self.test_y, pred, labels=ls)
             cm = pd.DataFrame(confusion_matrix, index=ls, columns=ls)
 
             ax = sn.heatmap(cm, annot=True, cmap="YlGnBu", ax=ax, fmt='g', )

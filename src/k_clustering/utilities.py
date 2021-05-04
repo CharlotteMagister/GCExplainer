@@ -44,9 +44,29 @@ def load_real_data(dataset_str):
 
     elif dataset_str == "Reddit_Binary":
         graphs = TUDataset(root='.', name='REDDIT-BINARY', transform=torch_geometric.transforms.Constant())
-
     else:
         raise Exception("Invalid Real Dataset Name")
+
+    print()
+    print(f'Dataset: {graphs}:')
+    print('====================')
+    print(f'Number of graphs: {len(graphs)}')
+    print(f'Number of features: {graphs.num_features}')
+    print(f'Number of classes: {graphs.num_classes}')
+
+    data = graphs[0]  # Get the first graph object.
+
+    print()
+    print(data)
+    print('=============================================================')
+
+    # Gather some statistics about the first graph.
+    print(f'Number of nodes: {data.num_nodes}')
+    print(f'Number of edges: {data.num_edges}')
+    print(f'Average node degree: {data.num_edges / data.num_nodes:.2f}')
+    print(f'Contains isolated nodes: {data.contains_isolated_nodes()}')
+    print(f'Contains self-loops: {data.contains_self_loops()}')
+    print(f'Is undirected: {data.is_undirected()}')
 
     return graphs
 
@@ -84,17 +104,9 @@ def prepare_real_data(graphs, train_split, batch_size):
     train_set = graphs[:train_idx]
     test_set = graphs[train_idx:]
 
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
-    full_loader = DataLoader(graphs, batch_size=len(graphs), shuffle=False)
-
-    print("Task: Graph Classification")
-    print("Number of graphs: ", len(graphs))
-
-    num_features = 0
-    if graphs[0].x is not None:
-        num_features = graphs[0].x.shape[1]
-    print(f"Number of features: {num_features}")
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
+    full_loader = DataLoader(graphs, batch_size=len(graphs), shuffle=True)
 
     train_zeros = 0
     train_ones = 0
@@ -108,6 +120,7 @@ def prepare_real_data(graphs, train_split, batch_size):
         test_ones += np.sum(data.y.detach().numpy())
         test_zeros += len(data.y.detach().numpy()) - np.sum(data.y.detach().numpy())
 
+    print()
     print(f"Class split - Training 0: {train_zeros} 1:{train_ones}, Test 0: {test_zeros} 1: {test_ones}")
 
 
@@ -197,7 +210,7 @@ def get_top_subgraphs(top_indices, y, edges, num_expansions, graph_data=None):
     return graphs, color_maps, labels
 
 def get_node_distances(clustering_model, data):
-    if isinstance(clustering_model, AgglomerativeClustering):
+    if isinstance(clustering_model, AgglomerativeClustering) or isinstance(clustering_model, DBSCAN):
         x, y_predict = data
         clf = NearestCentroid()
         clf.fit(x, y_predict)
@@ -208,38 +221,6 @@ def get_node_distances(clustering_model, data):
         res_sorted = clustering_model.transform(data)
 
     return res_sorted
-
-
-# def plot_samples(clustering_model, data, layer_num, k, clustering_type, num_nodes_view, edges, num_expansions, path):
-#     res_sorted = get_node_distances(clustering_model, data)
-#
-#     fig, axes = plt.subplots(k, abs(num_nodes_view), figsize=(20,20))
-#     fig.suptitle(f'Nearest to {clustering_type} Centroid for Layer {layer_num}', fontsize=40)
-#
-#     l = list(range(0, k))
-#     sample_graphs = []
-#
-#     for i, ax_list in zip(l, axes):
-#         if isinstance(clustering_model, AgglomerativeClustering):
-#             distances = res_sorted[i]
-#         elif isinstance(clustering_model, KMeans):
-#             distances = res_sorted[i]
-#
-#         top_indices = np.argsort(distances)[::][:num_nodes_view]
-#         top_graphs, color_maps = get_top_subgraphs(top_indices, edges, num_expansions)
-#
-#         for ax, new_G, color_map in zip(ax_list, top_graphs, color_maps):
-#             nx.draw(new_G, node_color=color_map, with_labels=True, ax=ax)
-#
-#         sample_graphs.append((top_graphs[0], top_indices[0]))
-#
-#     if isinstance(clustering_model, AgglomerativeClustering):
-#         plt.savefig(os.path.join(path, f"{k}h_{layer_num}layer_{clustering_type}.png"))
-#     else:
-#         plt.savefig(os.path.join(path, f"{layer_num}layer_{clustering_type}_{num_expansions}expansions.png"))
-#     plt.show()
-#
-#     return sample_graphs
 
 
 def plot_samples(clustering_model, data, y, layer_num, k, clustering_type, num_nodes_view, edges, num_expansions, path, graph_data=None):
@@ -257,7 +238,7 @@ def plot_samples(clustering_model, data, y, layer_num, k, clustering_type, num_n
     sample_feat = []
 
     for i, ax_list in zip(l, axes):
-        if isinstance(clustering_model, AgglomerativeClustering):
+        if isinstance(clustering_model, AgglomerativeClustering) or isinstance(clustering_model, DBSCAN):
             distances = res_sorted[i]
         elif isinstance(clustering_model, KMeans):
             distances = res_sorted[:, i]
