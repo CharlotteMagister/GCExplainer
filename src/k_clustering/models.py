@@ -13,7 +13,7 @@ from torch_geometric.utils import add_self_loops, degree
 from torch_geometric.nn import global_mean_pool, GlobalAttention
 
 class BA_Shapes_GCN(nn.Module):
-    def __init__(self, num_conv_layers, num_in_features, num_hidden_features, num_classes):
+    def __init__(self, num_in_features, num_hidden_features, num_classes):
         super(BA_Shapes_GCN, self).__init__()
 
         self.name = "BA-Shapes"
@@ -84,58 +84,6 @@ class Pool(torch.nn.Module):
 
 # Learned from: https://colab.research.google.com/drive/1I8a0DfQ3fI7Njc62__mVXUlcAleUclnb?usp=sharingand
 
-# class Mutag_GCN(torch.nn.Module):
-#     def __init__(self, num_node_features, num_classes):
-#         super(Mutag_GCN, self).__init__()
-#
-#         num_hidden_units = 32
-#         self.nn0 = nn.Sequential(nn.Linear(num_node_features, num_hidden_units), nn.ReLU(), nn.Linear(num_hidden_units, num_hidden_units))
-#         self.nn1 = nn.Sequential(nn.Linear(num_hidden_units, num_hidden_units), nn.ReLU(), nn.Linear(num_hidden_units, num_hidden_units))
-#         self.nn2 = nn.Sequential(nn.Linear(num_hidden_units, num_hidden_units), nn.ReLU(), nn.Linear(num_hidden_units, num_hidden_units))
-#
-#         self.conv0 = GINConv(self.nn0)
-#         self.conv1 = GINConv(self.nn1)
-#         self.conv2 = GINConv(self.nn2)
-#
-#         # self.conv0 = GCNConv(num_node_features, num_hidden_units)
-#         # self.conv1 = GCNConv(num_hidden_units, num_hidden_units)
-#         # self.conv2 = GCNConv(num_hidden_units, num_hidden_units)
-#
-#         # self.pool0 = GlobalAttention(nn.Linear(num_hidden_units, 1))
-#         # self.pool1 = GlobalAttention(nn.Linear(num_hidden_units, 1))
-#         # self.pool2 = GlobalAttention(nn.Linear(num_hidden_units, 1))
-#
-#         self.pool0 = Pool()
-#         self.pool1 = Pool()
-#         self.pool2 = Pool()
-#
-#         self.lin = nn.Linear(num_hidden_units, num_classes)
-#
-#     def forward(self, x, edge_index, batch):
-#         # 1. Obtain node embeddings
-#         x = self.conv0(x, edge_index)
-#         x = F.relu(x)
-#
-#         _ = self.pool0(x, batch)
-#
-#         x = self.conv1(x, edge_index)
-#         x = F.relu(x)
-#
-#         _ = self.pool1(x, batch)
-#
-#         x = self.conv2(x, edge_index)
-#         x = F.relu(x)
-#
-#         x = self.pool2(x, batch)
-#
-#         x = F.dropout(x, p=0.5, training=self.training)
-#         x = self.lin(x)
-#
-#         self.last = x
-#
-#         return x
-
-
 class Mutag_GCN(torch.nn.Module):
     def __init__(self, num_node_features, num_classes):
         super(Mutag_GCN, self).__init__()
@@ -191,7 +139,7 @@ class Reddit_GCN(torch.nn.Module):
     def __init__(self, num_node_features, num_classes):
         super(Reddit_GCN, self).__init__()
 
-        num_hidden_units = 30
+        num_hidden_units = 40
         self.conv0 = GCNConv(num_node_features, num_hidden_units)
         self.conv1 = GCNConv(num_hidden_units, num_hidden_units)
         self.conv2 = GCNConv(num_hidden_units, num_hidden_units)
@@ -225,6 +173,7 @@ class Reddit_GCN(torch.nn.Module):
         # x = F.relu(x)
 
         x = self.pool3(x, batch)
+        # print(x.shape)
 
         # x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin(x)
@@ -246,9 +195,9 @@ def get_activation(idx):
 
 def register_hooks(model):
     # register hooks to extract activations
-    if isinstance(model, Mutag_GCN):
+    if isinstance(model, Mutag_GCN) or isinstance(model, Reddit_GCN):
         for name, m in model.named_modules():
-            if isinstance(m, GlobalAttention):
+            if isinstance(m, GCNConv):
                 m.register_forward_hook(get_activation(f"{name}"))
             if isinstance(m, nn.Linear):
                 m.register_forward_hook(get_activation(f"{name}"))

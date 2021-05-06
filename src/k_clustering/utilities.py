@@ -131,12 +131,13 @@ def set_rc_params():
     medium = 18
     large = 24
 
+    plt.rc('figure', autolayout=True)
     plt.rc('font', size=medium)
     plt.rc('axes', titlesize=medium, labelsize=small, grid=True)
     plt.rc('xtick', labelsize=small)
     plt.rc('ytick', labelsize=small)
     plt.rc('legend', fontsize=medium)
-    plt.rc('figure', titlesize=large, figsize=(12, 8), facecolor='white')
+    plt.rc('figure', titlesize=large, facecolor='white')
     plt.rc('legend', loc='upper left')
 
 
@@ -146,7 +147,7 @@ def plot_activation_space(data, labels, activation_type, layer_num, path, note="
     ax.set_title(f"{activation_type} Activations of Layer {layer_num} {note}")
 
     scatter = ax.scatter(data[:,0], data[:,1], c=labels, cmap='rainbow')
-    ax.legend(handles=scatter.legend_elements()[0], labels=list(np.unique(labels)))
+    ax.legend(handles=scatter.legend_elements()[0], labels=list(np.unique(labels)), bbox_to_anchor=(1.05, 1))
 
     plt.savefig(os.path.join(path, f"{layer_num}_layer.png"))
     plt.show()
@@ -159,7 +160,7 @@ def plot_clusters(data, labels, clustering_type, k, layer_num, path, data_type, 
     for i in range(k):
         scatter = ax.scatter(data[labels == i,0], data[labels == i,1], label=f'Cluster {i}')
 
-    ax.legend()
+    ax.legend(bbox_to_anchor=(1.05, 1))
     plt.savefig(os.path.join(path, f"{layer_num}layer_{data_type}{reduction_type}.png"))
     plt.show()
 
@@ -230,7 +231,7 @@ def plot_samples(clustering_model, data, y, layer_num, k, clustering_type, num_n
         num_nodes_view = [num_nodes_view]
     col = sum([abs(number) for number in num_nodes_view])
 
-    fig, axes = plt.subplots(k, col, figsize=(20,20))
+    fig, axes = plt.subplots(k, col)
     fig.suptitle(f'Nearest to {clustering_type} Centroid for Layer {layer_num}', fontsize=40)
 
     l = list(range(0, k))
@@ -285,7 +286,7 @@ def plot_dendrogram(data, reduction_type, layer_num, path):
 
 
 def plot_completeness_table(model_type, calc_type, data, path):
-    fig, ax = plt.subplots(figsize=(6, 3))
+    fig, ax = plt.subplots()
     headings = ["Model", "Data", "Completeness Score"]
 
     ax.set_title(f"Completeness Score (Task Accuracy) for {model_type} Models using {calc_type}")
@@ -327,7 +328,7 @@ def calc_graph_similarity(top_graphs, max_nodes, num_nodes_view):
 
 
 def plot_graph_similarity_table(model_type, data, path):
-    fig, ax = plt.subplots(figsize=(25, 15))
+    fig, ax = plt.subplots()
     headings = ["Model", "Data", "Layer", "Concept/Cluster", "Graph Similarity Score"]
 
     ax.set_title(f"Graph Similarity for Concepts extracted using {model_type}")
@@ -336,3 +337,24 @@ def plot_graph_similarity_table(model_type, data, path):
 
     plt.savefig(os.path.join(path, f"{model_type}_graph_similarity.png"))
     plt.show()
+
+
+def prepare_output_paths(dataset_name, k):
+    path = f"output/{dataset_name}/"
+    path_tsne = os.path.join(path, "TSNE")
+    path_pca = os.path.join(path, "PCA")
+    path_umap = os.path.join(path, "UMAP")
+    path_kmeans = os.path.join(path, f"{k}_KMeans")
+    path_hc = os.path.join(path, f"HC")
+    path_ward = os.path.join(path, f"WARD")
+    path_dbscan = os.path.join(path, f"DBSCAN")
+    os.makedirs(path, exist_ok=True)
+    os.makedirs(path_tsne, exist_ok=True)
+    os.makedirs(path_pca, exist_ok=True)
+    os.makedirs(path_umap, exist_ok=True)
+    os.makedirs(path_kmeans, exist_ok=True)
+    os.makedirs(path_hc, exist_ok=True)
+    os.makedirs(path_ward, exist_ok=True)
+    os.makedirs(path_dbscan, exist_ok=True)
+
+    return {"base": path, "TSNE": path_tsne, "PCA": path_pca, "UMAP": path_umap, "KMeans": path_kmeans, "HC": path_hc, "Ward": path_ward, "DBSCAN": path_dbscan}
