@@ -9,8 +9,8 @@ import pickle
 import networkx as nx
 
 from torch_geometric.nn import MessagePassing, GCNConv, DenseGCNConv, GINConv, GraphConv
-from torch_geometric.utils import add_self_loops, degree, to_dense_adj, convert
-from torch_geometric.nn import global_mean_pool, GlobalAttention, global_max_pool
+from torch_geometric.utils import add_self_loops, degree
+from torch_geometric.nn import global_mean_pool, GlobalAttention
 
 class BA_Shapes_GCN(nn.Module):
     def __init__(self, num_in_features, num_hidden_features, num_classes, name):
@@ -28,11 +28,9 @@ class BA_Shapes_GCN(nn.Module):
 
     def forward(self, x, edge_index):
         x = self.conv0(x, edge_index)
-        print(x.shape)
         x = F.relu(x)
 
         x = self.conv1(x, edge_index)
-        print(x.shape)
         x = F.relu(x)
 
         x = self.conv2(x, edge_index)
@@ -48,16 +46,16 @@ class BA_Shapes_GCN(nn.Module):
 
 class BA_Community_GCN(nn.Module):
     def __init__(self, num_in_features, num_hidden_features, num_classes):
-        super(BA_Community_GCN, self).__init__()
+        super(BA_Shapes_GCN, self).__init__()
 
         self.name = "BA-Community"
 
-        self.conv0 = DenseGCNConv(num_in_features, num_hidden_features)
-        self.conv1 = DenseGCNConv(num_hidden_features, num_hidden_features)
-        self.conv2 = DenseGCNConv(num_hidden_features, num_hidden_features)
-        self.conv3 = DenseGCNConv(num_hidden_features, num_hidden_features)
-        self.conv4 = DenseGCNConv(num_hidden_features, num_hidden_features)
-        self.conv5 = DenseGCNConv(num_hidden_features, num_hidden_features)
+        self.conv0 = GCNConv(num_in_features, num_hidden_features)
+        self.conv1 = GCNConv(num_hidden_features, num_hidden_features)
+        self.conv2 = GCNConv(num_hidden_features, num_hidden_features)
+        self.conv3 = GCNConv(num_hidden_features, num_hidden_features)
+        self.conv4 = GCNConv(num_hidden_features, num_hidden_features)
+        self.conv5 = GCNConv(num_hidden_features, num_hidden_features)
 
         # linear layers
         self.linear = nn.Linear(num_hidden_features, num_classes)
@@ -83,11 +81,11 @@ class BA_Community_GCN(nn.Module):
 
         x = self.linear(x)
 
-        return F.log_softmax(x, dim=-1).squeeze()
+        return F.log_softmax(x, dim=-1)
 
 
 class Tree_Cycle_GCN(nn.Module):
-    def __init__(self, num_in_features, num_hidden_features, num_classes, name):
+    def __init__(self, num_conv_layers, num_in_features, num_hidden_features, num_classes, name):
         super(Tree_Cycle_GCN, self).__init__()
 
         self.name = name
@@ -104,8 +102,6 @@ class Tree_Cycle_GCN(nn.Module):
         self.linear = nn.Linear(num_hidden_features, num_classes)
 
     def forward(self, x, edge_index):
-        # print("This is x ", x.shape)
-        # print("This is edge ", edge_index.shape)
         x = self.conv0(x, edge_index)
         x = F.relu(x)
 
@@ -118,61 +114,6 @@ class Tree_Cycle_GCN(nn.Module):
         x = self.linear(x)
 
         return F.log_softmax(x, dim=-1).squeeze()
-
-
-
-class Tree_Grid_GCN(nn.Module):
-    def __init__(self, num_in_features, num_hidden_features, num_classes, name):
-        super(Tree_Grid_GCN, self).__init__()
-
-        self.name = name
-
-        # convolutional layers
-        # hidden_features = 20
-        self.conv0 = DenseGCNConv(num_in_features, num_hidden_features)
-
-        self.conv1 = DenseGCNConv(num_hidden_features, num_hidden_features)
-
-        self.conv2 = DenseGCNConv(num_hidden_features, num_hidden_features)
-
-        self.conv3 = DenseGCNConv(num_hidden_features, num_hidden_features)
-
-        self.conv4 = DenseGCNConv(num_hidden_features, num_hidden_features)
-
-        self.conv5 = DenseGCNConv(num_hidden_features, num_hidden_features)
-
-        self.conv6 = DenseGCNConv(num_hidden_features, num_hidden_features)
-
-        # linear layers
-        self.linear = nn.Linear(num_hidden_features, num_classes)
-
-    def forward(self, x, edge_index):
-
-        x = self.conv0(x, edge_index)
-        x = F.relu(x)
-
-        x = self.conv1(x, edge_index)
-        x = F.relu(x)
-
-        x = self.conv2(x, edge_index)
-        x = F.relu(x)
-
-        x = self.conv3(x, edge_index)
-        x = F.relu(x)
-
-        x = self.conv4(x, edge_index)
-        x = F.relu(x)
-
-        x = self.conv5(x, edge_index)
-        x = F.relu(x)
-
-        x = self.conv6(x, edge_index)
-        x = F.relu(x)
-
-        x = self.linear(x)
-
-        return F.log_softmax(x, dim=-1).squeeze()
-
 
 
 class Pool(torch.nn.Module):
@@ -238,67 +179,6 @@ class Mutag_GCN(torch.nn.Module):
         return x
 
 
-class Pool2(torch.nn.Module):
-    def __init__(self):
-        super(Pool2, self).__init__()
-
-    def forward(self, x, batch):
-        # out, _ = torch.max(x, dim=1)
-        # return out
-        return global_max_pool(x, batch)
-
-
-class Mutag_GCN2(torch.nn.Module):
-    def __init__(self, num_node_features, num_classes):
-        super(Mutag_GCN2, self).__init__()
-
-        self.name = 'Mutagenicity'
-
-        num_hidden_units = 30
-        self.conv0 = GCNConv(num_node_features, num_hidden_units)
-        self.conv1 = GCNConv(num_hidden_units, num_hidden_units)
-        self.conv2 = GCNConv(num_hidden_units, num_hidden_units)
-        self.conv3 = GCNConv(num_hidden_units, num_hidden_units)
-
-        self.pool0 = Pool2()
-        self.pool1 = Pool2()
-        self.pool2 = Pool2()
-        self.pool3 = Pool2()
-
-        self.lin = nn.Linear(num_hidden_units * 4, num_classes)
-
-    def forward(self, x, edge_index, batch):
-        out_all = []
-
-        x = self.conv0(x, edge_index)
-        x = F.relu(x)
-
-        out = self.pool0(x, batch)
-        out_all.append(out)
-
-        x = self.conv1(x, edge_index)
-        x = F.relu(x)
-
-        out = self.pool1(x, batch)
-        out_all.append(out)
-
-        x = self.conv2(x, edge_index)
-        x = F.relu(x)
-
-        out = self.pool2(x, batch)
-        out_all.append(out)
-
-        x = self.conv3(x, edge_index)
-
-        out = self.pool3(x, batch)
-        out_all.append(out)
-
-        output = torch.cat(out_all, dim=-1)
-        x = self.lin(output)
-
-        return x
-
-
 class Reddit_GCN(torch.nn.Module):
     def __init__(self, num_node_features, num_classes):
         super(Reddit_GCN, self).__init__()
@@ -355,6 +235,7 @@ def get_activation(idx):
     '''Learned from: https://discuss.pytorch.org/t/how-can-l-load-my-best-model-as-a-feature-extractor-evaluator/17254/6'''
     def hook(model, input, output):
         activation_list[idx] = output.detach()
+
     return hook
 
 
@@ -372,8 +253,6 @@ def register_hooks(model):
     else:
         for name, m in model.named_modules():
             if isinstance(m, GCNConv) or isinstance(m, DenseGCNConv):
-                m.register_forward_hook(get_activation(f"{name}"))
-            if isinstance(m, nn.Linear):
                 m.register_forward_hook(get_activation(f"{name}"))
 
     return model
@@ -440,9 +319,6 @@ def train(model, data, epochs, lr, path):
 
             print('Epoch: {:03d}, Loss: {:.5f}, Train Acc: {:.5f}, Test Acc: {:.5f}'.
                   format(epoch, loss.item(), train_acc, test_acc), end = "\r")
-
-            if train_acc >= 0.95 and test_acc >= 0.95:
-                break
 
     # plut accuracy graph
     plt.plot(train_accuracies, label="Train Accuracy")
@@ -549,9 +425,6 @@ def train_graph_class(model, train_loader, test_loader, full_loader, epochs, lr,
 
         print('Epoch: {:03d}, Train Loss: {:.5f}, Test Loss: {:.5f}, Train Acc: {:.5f}, Test Acc: {:.5f}'.
                   format(epoch, train_loss[-1], test_loss[-1], train_acc, test_acc))
-
-        if train_acc >= 0.85 and test_acc >= 0.85:
-            break
 
     # plut accuracy graph
     plt.plot(train_accuracies, label="Train accuracy")

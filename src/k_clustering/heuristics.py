@@ -73,16 +73,16 @@ class Mutag_Heuristics():
 
         return results
 
-    def plot_heuristics_table(self, sample_graphs, sample_feats, layer_num, clustering_type, reduction_type, path):
+    def plot_heuristics_table(self, sample_graphs, sample_feats, layer_num, clustering_type, path):
         fig, ax = plt.subplots(figsize=(10, 10))
         data = self.eval(sample_graphs, sample_feats)
         headings = ["Cluster", "Heuristic", "Descritpion"]
 
-        ax.set_title(f"Concepts Identified per {clustering_type} Cluster in {reduction_type} Activation Space of Layer {layer_num}")
+        ax.set_title(f"Concepts Identified per {clustering_type} Cluster in Layer {layer_num}")
         ax.axis('off')
         ax.table(cellText=data, colLabels=headings, loc="center", rowLoc="center", cellLoc="center", colLoc="center", fontsize=18)
 
-        plt.savefig(os.path.join(path, f"{layer_num}layer_{clustering_type}_{reduction_type}_heuristics.png"))
+        plt.savefig(os.path.join(path, f"{layer_num}layer_{clustering_type}_heuristics.png"))
         plt.show()
 
 
@@ -258,7 +258,7 @@ class BA_Shapes_Heuristics():
             ns = list(G2.neighbors(node))
             if len(ns) == 2:
                 for n in ns:
-                    if len(list(G2.neighbors(n))) == 2:
+                    if len(list(G2.neighbors(n))) != 2:
                         return 1, "Top Node", False
 
                 return 1, "Top Node", True
@@ -281,15 +281,11 @@ class BA_Shapes_Heuristics():
         if nx.is_isomorphic(self.base, G2):
             ns = list(G2.neighbors(node))
             if len(ns) == 2:
-                n1 = False
-                n2 = False
                 for n in ns:
                     if len(list(G2.neighbors(n))) == 3:
-                        n1 = True
-                    elif len(list(G2.neighbors(n))) == 2:
-                        n2 = True
+                        ret = 3, "Bottom Node", True
 
-        return 3, "Bottom Node", (n1 and n2)
+        return 3, "Bottom Node", ret
 
 
     def eval_heuristic4(self, G2, node):
@@ -313,11 +309,11 @@ class BA_Shapes_Heuristics():
             if len(ns) == 4:
                 for n in ns:
                     if len(list(G2.neighbors(n))) != 2 and len(list(G2.neighbors(n))) != 3:
-                        return 5, "Middle Node and Middle Arm Close", True
+                        return 5, "Top Node and Middle Arm Far", False
 
-                return 5, "Middle Node and Middle Arm Close", True
+                return 5, "Top Node and Middle Arm Far", True
 
-        return 5, "Middle Node and Middle Arm Close", False
+        return 5, "Top Node and Middle Arm Far", False
 
 
     def eval_heuristic6(self, G2, node):
@@ -326,7 +322,7 @@ class BA_Shapes_Heuristics():
             ns = list(G2.neighbors(node))
             if len(ns) == 3:
                 for n in ns:
-                    if len(list(G2.neighbors(n))) != 2 and len(list(G2.neighbors(n))) != 4:
+                    if len(list(G2.neighbors(n))) != 2 and len(list(G2.neighbors(n))) != 3:
                         return 6, "Middle Node and Middle Arm Far", False
 
                 return 6, "Middle Node and Middle Arm Far", True
@@ -348,7 +344,7 @@ class BA_Shapes_Heuristics():
 
 
     def eval_heuristic8(self, G2, node):
-        """House Bottom + Middle Arm Far"""
+        """House Bttom + Middle Arm Far"""
         ret = False
         if nx.is_isomorphic(self.base_middle, G2):
             ns = list(G2.neighbors(node))
@@ -378,12 +374,12 @@ class BA_Shapes_Heuristics():
         return results
 
 
-def plot_heuristics_table(heuristics, sample_graphs, layer_num, clustering_type, reduction_type, path):
+def plot_heuristics_table(heuristics, sample_graphs, layer_num, clustering_type, path):
+    fig, ax = plt.subplots(figsize=(10, 10))
     data = heuristics.eval(sample_graphs)
-    headings = ["Cluster", "Heuristic", "Description"]
+    headings = ["Cluster", "Heuristic", "Descritpion"]
 
-    fig, ax = plt.subplots(figsize=(10, int(0.25 * len(data))))
-    ax.set_title(f"Concepts Identified per {clustering_type} Cluster in {reduction_type} Activation Space of Layer {layer_num}")
+    ax.set_title(f"Concepts Identified per {clustering_type} Cluster in Layer {layer_num}")
     ax.axis('off')
     ax.table(cellText=data, colLabels=headings, loc="center", rowLoc="center", cellLoc="center", colLoc="center", fontsize=18)
 

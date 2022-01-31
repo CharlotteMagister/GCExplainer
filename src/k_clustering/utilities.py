@@ -24,7 +24,7 @@ from torch_geometric.data import DataLoader, DenseDataLoader
 from models import *
 
 def load_syn_data(dataset_str):
-    if dataset_str == "BA_Shapes":
+    if dataset_str == "BA_Houses":
         G = nx.readwrite.read_gpickle("../../data/BA_Houses/graph_ba_300_80.gpickel")
         role_ids = np.load("../../data/BA_Houses/role_ids_ba_300_80.npy")
 
@@ -106,12 +106,11 @@ def prepare_syn_data(G, labels, train_split, if_adj=False):
     print("Task: Node Classification")
     print("Number of features: ", len(features))
     print("Number of labels: ", len(labels))
-    print("Number of classes: ", len(set(labels)))
     print("Number of edges: ", len(edges))
 
     return {"x": features, "y": labels, "edges": edges, "edge_list": edge_list, "train_mask": train_mask, "test_mask": test_mask}
 
-def prepare_real_data(graphs, train_split, batch_size, dataset_str):
+def prepare_real_data(graphs, train_split, batch_size):
     graphs = graphs.shuffle()
 
     train_idx = int(len(graphs) * train_split)
@@ -120,14 +119,7 @@ def prepare_real_data(graphs, train_split, batch_size, dataset_str):
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
-
-    if dataset_str == "Mutagenicity":
-        full_loader = DataLoader(test_set, batch_size=int(len(test_set)), shuffle=True)
-        small_loader = DataLoader(test_set, batch_size=int(len(test_set) * 0.1))
-
-    elif dataset_str == "Reddit_Binary":
-        full_loader = DataLoader(test_set, batch_size=int(len(test_set) * 0.1), shuffle=True)
-        small_loader = DataLoader(test_set, batch_size=int(len(test_set) * 0.005))
+    full_loader = DataLoader(graphs, batch_size=len(graphs), shuffle=True)
 
     train_zeros = 0
     train_ones = 0
@@ -145,52 +137,51 @@ def prepare_real_data(graphs, train_split, batch_size, dataset_str):
     print(f"Class split - Training 0: {train_zeros} 1:{train_ones}, Test 0: {test_zeros} 1: {test_ones}")
 
 
-    return train_loader, test_loader, full_loader, small_loader
+    return train_loader, test_loader, full_loader
 
 def set_rc_params():
     small = 14
-    medium = 20
-    large = 28
+    medium = 18
+    large = 24
 
-    plt.rc('figure', autolayout=True, figsize=(10, 6))
+    plt.rc('figure', autolayout=True)
     plt.rc('font', size=medium)
     plt.rc('axes', titlesize=medium, labelsize=small, grid=True)
     plt.rc('xtick', labelsize=small)
     plt.rc('ytick', labelsize=small)
-    plt.rc('legend', fontsize=small)
+    plt.rc('legend', fontsize=medium)
     plt.rc('figure', titlesize=large, facecolor='white')
     plt.rc('legend', loc='upper left')
 
 
-def plot_activation_space(data, labels, activation_type, layer_num, path, note="", naming_help=""):
+def plot_activation_space(data, labels, activation_type, layer_num, path, note=""):
     rows = len(data)
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(12, 10))
     ax.set_title(f"{activation_type} Activations of Layer {layer_num} {note}")
 
     scatter = ax.scatter(data[:,0], data[:,1], c=labels, cmap='rainbow')
     ax.legend(handles=scatter.legend_elements()[0], labels=list(np.unique(labels)), bbox_to_anchor=(1.05, 1))
 
-    plt.savefig(os.path.join(path, f"{layer_num}_layer{naming_help}.png"))
+    plt.savefig(os.path.join(path, f"{layer_num}_layer.png"))
     plt.show()
 
 
-# def plot_clusters(data, labels, clustering_type, k, layer_num, path, data_type, reduction_type="", note=""):
-#     fig, ax = plt.subplots(figsize=(10, 6))
-#     fig.suptitle(f'{clustering_type} Clustered {data_type} Activations of Layer {layer_num} {note}')
-#
-#     for i in range(k):
-#         scatter = ax.scatter(data[labels == i,0], data[labels == i,1], label=f'Cluster {i}')
-#
-#     ax.legend(bbox_to_anchor=(1.05, 1))
-#     plt.savefig(os.path.join(path, f"{layer_num}layer_{data_type}{reduction_type}.png"))
-#     plt.show()
+def plot_clusters(data, labels, clustering_type, k, layer_num, path, data_type, reduction_type="", note=""):
+    fig, ax = plt.subplots(figsize=(12, 10))
+    fig.suptitle(f'{clustering_type} Clustered {data_type} Activations of Layer {layer_num} {note}')
+
+    for i in range(k):
+        scatter = ax.scatter(data[labels == i,0], data[labels == i,1], label=f'Cluster {i}')
+
+    ax.legend(bbox_to_anchor=(1.05, 1))
+    plt.savefig(os.path.join(path, f"{layer_num}layer_{data_type}{reduction_type}.png"))
+    plt.show()
 
 
-def get_top_subgraphs(top_indices, y, edges, num_expansions, graph_data=None, graph_name=None):
+def get_top_subgraphs(top_indices, y, edges, num_expansions, graph_data=None):
     graphs = []
     color_maps = []
     labels = []
-    node_labels = []
 
     df = pd.DataFrame(edges)
 
@@ -215,7 +206,6 @@ def get_top_subgraphs(top_indices, y, edges, num_expansions, graph_data=None, gr
         new_G.add_edges_from(remaining_edges)
 
         color_map = []
-        node_label = {}
         if graph_data is None:
             for node in new_G:
                 if node in top_indices:
@@ -223,24 +213,15 @@ def get_top_subgraphs(top_indices, y, edges, num_expansions, graph_data=None, gr
                 else:
                     color_map.append('pink')
         else:
-            if graph_name == "Mutagenicity":
-                ids = ["C", "O", "Cl", "H", "N", "F", "Br", "S", "P", "I", "Na", "K", "Li", "Ca"]
-            elif graph_name == "REDDIT-BINARY":
-                ids = []
-
-            for node in zip(new_G):
-                node = node[0]
-                color_idx = graph_data[node]
+            for node, attribute in zip(new_G, graph_data.x.numpy()):
+                color_idx = np.argmax(attribute, axis=0)
                 color_map.append(color_idx)
-                node_label[node] = f"{ids[color_idx]}"
 
         color_maps.append(color_map)
         graphs.append(new_G)
         labels.append(y[idx])
-        node_labels.append(node_label)
 
-
-    return graphs, color_maps, labels, node_labels
+    return graphs, color_maps, labels
 
 def get_node_distances(clustering_model, data):
     if isinstance(clustering_model, AgglomerativeClustering) or isinstance(clustering_model, DBSCAN):
@@ -256,34 +237,15 @@ def get_node_distances(clustering_model, data):
     return res_sorted
 
 
-def plot_clusters(data, labels, clustering_type, k, layer_num, path, data_type, reduction_type="", note=""):
-    fig, ax = plt.subplots(figsize=(12, 8))
-    fig.suptitle(f'{clustering_type} Clustered {data_type} Activations of Layer {layer_num} {note}')
-
-    for i in range(k):
-        scatter = ax.scatter(data[labels == i,0], data[labels == i,1], label=f'Cluster {i}')
-
-    ncol = 1
-    if k > 20:
-        ncol = int(k / 20) + 1
-    ax.legend(bbox_to_anchor=(1.05, 1), ncol=ncol)
-    plt.savefig(os.path.join(path, f"{layer_num}layer_{data_type}{reduction_type}.png"))
-    plt.show()
-
-
-def plot_samples(clustering_model, data, y, layer_num, k, clustering_type, reduction_type, num_nodes_view, edges, num_expansions, path, graph_data=None, graph_name=None):
+def plot_samples(clustering_model, data, y, layer_num, k, clustering_type, num_nodes_view, edges, num_expansions, path, graph_data=None):
     res_sorted = get_node_distances(clustering_model, data)
 
     if isinstance(num_nodes_view, int):
         num_nodes_view = [num_nodes_view]
     col = sum([abs(number) for number in num_nodes_view])
 
-    fig, axes = plt.subplots(k, col, figsize=(18, 3 * k + 2))
-    fig.suptitle(f'Nearest Instances to {clustering_type} Cluster Centroid for {reduction_type} Activations of Layer {layer_num}', y=1.005)
-
-    if graph_data is not None:
-        fig2, axes2 = plt.subplots(k, col, figsize=(18, 3 * k + 2))
-        fig2.suptitle(f'Nearest Instances to {clustering_type} Cluster Centroid for {reduction_type} Activations of Layer {layer_num} (by node index)', y=1.005)
+    fig, axes = plt.subplots(k, col, figsize=(20, 3 * k))
+    fig.suptitle(f'Nearest to {clustering_type} Centroid for Layer {layer_num}', fontsize=40)
 
     l = list(range(0, k))
     sample_graphs = []
@@ -302,95 +264,31 @@ def plot_samples(clustering_model, data, y, layer_num, k, clustering_type, reduc
             else:
                 top_indices = np.argsort(distances)[::][:view]
 
-            tg, cm, labels, node_labels = get_top_subgraphs(top_indices, y, edges, num_expansions, graph_data, graph_name)
+            tg, cm, labels = get_top_subgraphs(top_indices, y, edges, num_expansions, graph_data)
             top_graphs = top_graphs + tg
             color_maps = color_maps + cm
 
-        if graph_data is None:
-            for ax, new_G, color_map, g_label in zip(ax_list, top_graphs, color_maps, labels):
-                nx.draw(new_G, node_color=color_map, with_labels=True, ax=ax)
-                ax.set_title(f"label {g_label}", fontsize=14)
-        else:
-            for ax, new_G, color_map, g_label, n_labels in zip(ax_list, top_graphs, color_maps, labels, node_labels):
-                nx.draw(new_G, node_color=color_map, with_labels=True, ax=ax, labels=n_labels)
-                ax.set_title(f"label {g_label}", fontsize=14)
-
-            for ax, new_G, color_map, g_label, n_labels in zip(axes2[i], top_graphs, color_maps, labels, node_labels):
-                nx.draw(new_G, node_color=color_map, with_labels=True, ax=ax)
-                ax.set_title(f"label {g_label}", fontsize=14)
+        for ax, new_G, color_map, g_label in zip(ax_list, top_graphs, color_maps, labels):
+            nx.draw(new_G, node_color=color_map, with_labels=True, ax=ax)
+            ax.set_title(f"label {g_label}", fontsize=14)
 
         sample_graphs.append((top_graphs[0], top_indices[0]))
         sample_feat.append(color_maps[0])
 
     views = ''.join((str(i) + "_") for i in num_nodes_view)
     if isinstance(clustering_model, AgglomerativeClustering):
-        fig.savefig(os.path.join(path, f"{k}h_{layer_num}layer_{clustering_type}_{views}view.png"))
+        plt.savefig(os.path.join(path, f"{k}h_{layer_num}layer_{clustering_type}_{views}view.png"))
     else:
-        fig.savefig(os.path.join(path, f"{layer_num}layer_{clustering_type}_{reduction_type}_{views}view.png"))
-
-    if graph_data is not None:
-        if isinstance(clustering_model, AgglomerativeClustering):
-            fig2.savefig(os.path.join(path, f"{k}h_{layer_num}layer_{clustering_type}_{views}view_by_node.png"))
-        else:
-            fig2.savefig(os.path.join(path, f"{layer_num}layer_{clustering_type}_{reduction_type}_{views}view_by_node.png"))
-
+        plt.savefig(os.path.join(path, f"{layer_num}layer_{clustering_type}_{views}view.png"))
     plt.show()
 
     return sample_graphs, sample_feat
 
 
-# def plot_samples(clustering_model, data, y, layer_num, k, clustering_type, reduction_type, num_nodes_view, edges, num_expansions, path, graph_data=None):
-#     res_sorted = get_node_distances(clustering_model, data)
-#
-#     if isinstance(num_nodes_view, int):
-#         num_nodes_view = [num_nodes_view]
-#     col = sum([abs(number) for number in num_nodes_view])
-#
-#     fig, axes = plt.subplots(k, col, figsize=(18, 3 * k))
-#     fig.suptitle(f'Nearest Instances to {clustering_type} Cluster Centroid for {reduction_type} Activations of Layer {layer_num}')
-#
-#     l = list(range(0, k))
-#     sample_graphs = []
-#     sample_feat = []
-#
-#     for i, ax_list in zip(l, axes):
-#         if isinstance(clustering_model, AgglomerativeClustering) or isinstance(clustering_model, DBSCAN):
-#             distances = res_sorted[i]
-#         elif isinstance(clustering_model, KMeans):
-#             distances = res_sorted[:, i]
-#
-#         top_graphs, color_maps = [], []
-#         for view in num_nodes_view:
-#             if view < 0:
-#                 top_indices = np.argsort(distances)[::][view:]
-#             else:
-#                 top_indices = np.argsort(distances)[::][:view]
-#
-#             tg, cm, labels = get_top_subgraphs(top_indices, y, edges, num_expansions, graph_data)
-#             top_graphs = top_graphs + tg
-#             color_maps = color_maps + cm
-#
-#         for ax, new_G, color_map, g_label in zip(ax_list, top_graphs, color_maps, labels):
-#             nx.draw(new_G, node_color=color_map, with_labels=True, ax=ax)
-#             ax.set_title(f"label {g_label}", fontsize=14)
-#
-#         sample_graphs.append((top_graphs[0], top_indices[0]))
-#         sample_feat.append(color_maps[0])
-#
-#     views = ''.join((str(i) + "_") for i in num_nodes_view)
-#     if isinstance(clustering_model, AgglomerativeClustering):
-#         plt.savefig(os.path.join(path, f"{k}h_{layer_num}layer_{clustering_type}_{views}view.png"))
-#     else:
-#         plt.savefig(os.path.join(path, f"{layer_num}layer_{clustering_type}_{views}view.png"))
-#     plt.show()
-#
-#     return sample_graphs, sample_feat
-
-
 def plot_dendrogram(data, reduction_type, layer_num, path):
     """Learned from: https://medium.com/@sametgirgin/hierarchical-clustering-model-in-5-steps-with-python-6c45087d4318 """
-    fig, ax = plt.subplots(figsize=(10, 6))
-    fig.suptitle(f'HC Dendrogram of {reduction_type} Activation Space of Layer {layer_num}')
+    fig, ax = plt.subplots(figsize=(12, 10))
+    fig.suptitle(f'HC Dendrograms of {reduction_type} Activations of Layer {layer_num}')
 
     dendrogram = hierarchy.dendrogram(hierarchy.linkage(data, method='average'), truncate_mode="lastp", ax=ax, leaf_rotation=90.0, leaf_font_size=14)
     ax.set_xlabel("Nodes")
@@ -401,8 +299,8 @@ def plot_dendrogram(data, reduction_type, layer_num, path):
 
 
 def plot_completeness_table(model_type, calc_type, data, path):
-    fig, ax = plt.subplots(figsize=(10, 2 * len(data)))
-    headings = ["Data", "Layer", "Completeness Score"]
+    fig, ax = plt.subplots(figsize=(2 * len(data), 8))
+    headings = ["Model", "Data", "Completeness Score"]
 
     ax.set_title(f"Completeness Score (Task Accuracy) for {model_type} Models using {calc_type}")
     ax.axis('off')
@@ -418,9 +316,6 @@ def calc_graph_similarity(top_graphs, max_nodes, num_nodes_view):
 
     print("Nodes ", top_G.number_of_nodes(), " Graphs ", len(top_graphs))
 
-    if top_G.number_of_nodes() > max_nodes:
-        return "skipping (too many nodes)"
-
     if_iso = True
 
     for G in top_graphs[1:]:
@@ -430,6 +325,9 @@ def calc_graph_similarity(top_graphs, max_nodes, num_nodes_view):
 
     if if_iso:
         return 0
+
+    if top_G.number_of_nodes() > max_nodes:
+        return "skipping (too many nodes)"
 
     total_score = 0
     for G in top_graphs[1:]:
@@ -443,7 +341,7 @@ def calc_graph_similarity(top_graphs, max_nodes, num_nodes_view):
 
 
 def plot_graph_similarity_table(model_type, data, path):
-    fig, ax = plt.subplots(figsize=(10, 0.25 * len(data)))
+    fig, ax = plt.subplots(figsize=(2 * len(data), 10))
     headings = ["Model", "Data", "Layer", "Concept/Cluster", "Graph Similarity Score"]
 
     ax.set_title(f"Graph Similarity for Concepts extracted using {model_type}")

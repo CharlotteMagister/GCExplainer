@@ -20,51 +20,52 @@ import sklearn.metrics as metrics
 import seaborn as sn
 
 class ActivationClassifier():
-    def __init__(self, pred_data, clustering_model, classifier_type, x, y, train_mask=None, test_mask=None, if_graph_class=False):
+    def __init__(self, pred_data, clustering_model, classifier_type, x, y, train_mask, test_mask, edge_list, layer, if_graph_class=False):
         self.pred_data = pred_data
         self.clustering_model = clustering_model
         self.classifier_type = classifier_type
 
         if if_graph_class:
-            self.dataloader = x
-            self.y = y
-            self.train_mask = np.zeros(len(y))
-            self.train_mask[:int(len(train_mask) * 0.8)] = 1
-            self.test_mask = ~self.train_mask
+            self.train_x = x
+            self.train_y = y
         else:
             self.x = x.detach().numpy()
             self.y = y.detach().numpy()
-            self.train_mask = train_mask
-            self.test_mask = test_mask
+            self.train_mask = train_mask.astype(int)
+            self.test_mask = test_mask.astype(int)
 
+        self.edge_list = edge_list
+        self.layer = layer
         self.if_graph_class = if_graph_class
 
-        if isinstance(self.clustering_model, AgglomerativeClustering) or isinstance(self.clustering_model, DBSCAN):
+        if isinstance(self.clustering_model, AgglomerativeClustering):
             self.y_hc = self.clustering_model.fit_predict(self.pred_data)
 
         self.classifier, self.accuracy = self._train_classifier()
 
 
     def _train_classifier(self):
-        self.train_concepts = []
-        self.test_concepts = []
+        self.concepts = []
 
-        for node_idx in range(len(self.train_mask)):
-            if self.train_mask[node_idx] == 1:
-                self.train_concepts.append([self.activation_to_concept(node_idx)])
-            else:
-                self.test_concepts.append([self.activation_to_concept(node_idx)])
+        for node_idx in range(len(self.x)):
+            self.concepts.append([self.activation_to_concept(node_idx)])
+
+        # cast to correct type
+        self.concepts = np.array(self.concepts)
 
         if self.classifier_type == 'decision_tree':
             cls = tree.DecisionTreeClassifier()
-            cls = cls.fit(self.train_concepts, self.y[self.train_mask])
+            if self.if_graph_class:
+                cls = cls.fit(self.concepts, self.train_y)
+            else:
+                cls = cls.fit(self.concepts[self.train_mask], self.y[self.train_mask])
 
         elif self.classifier_type == 'logistic_regression':
             cls = linear_model.LogisticRegression()
-            cls = cls.fit(self.train_concepts, self.y[self.train_mask])
+            cls = cls.fit(self.concepts[self.train_mask], self.y[self.train_mask])
 
         # decision tree accuracy
-        accuracy = cls.score(self.test_concepts, self.y[self.test_mask])
+        accuracy = cls.score(self.concepts[self.test_mask], self.y[self.test_mask])
 
         return cls, accuracy
 
@@ -79,7 +80,7 @@ class ActivationClassifier():
             cluster = self.clustering_model.predict(self.pred_data)
             cluster = cluster[node]
 
-        elif isinstance(self.clustering_model, AgglomerativeClustering) or isinstance(self.clustering_model, DBSCAN):
+        elif isinstance(self.clustering_model, AgglomerativeClustering):
             cluster = np.array(self.y_hc[node])
 
         return cluster
@@ -116,7 +117,7 @@ class ActivationClassifier():
 
         elif self.classifier_type == 'logistic_regression':
             fig, ax = plt.subplots(figsize=(6, 6))
-            pred = self.classifier.predict(self.test_concepts)
+            pred = self.classifier.predict(self.concepts[self.test_mask])
             ls = np.unique(self.y)
             confusion_matrix = metrics.confusion_matrix(self.y[self.test_mask], pred, labels=ls)
             cm = pd.DataFrame(confusion_matrix, index=ls, columns=ls)
