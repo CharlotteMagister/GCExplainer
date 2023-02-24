@@ -21,7 +21,7 @@ import torch_geometric
 from torch_geometric.datasets import TUDataset
 from torch_geometric.data import DataLoader, DenseDataLoader
 
-from models import *
+from k_clustering.models import *
 
 
 def load_syn_data(dataset_str):
@@ -36,6 +36,12 @@ def load_syn_data(dataset_str):
         G = nx.read_adjlist("../../bashapes.adjlist", nodetype=int)
         nx.set_node_attributes(G, np.array([0]), "feat")
         role_ids = np.load("../../bashapes.labels.npy")
+
+    ## I ADDED THIS
+    elif dataset_str == "local_100_BA_Shapes":
+        G = nx.read_adjlist("../../100_bashapes.adjlist", nodetype=int)
+        nx.set_node_attributes(G, np.array([0]), "feat")
+        role_ids = np.load("../../100_bashapes.labels.npy")
 
     elif dataset_str == "BA_Grid":
         G = nx.readwrite.read_gpickle(
