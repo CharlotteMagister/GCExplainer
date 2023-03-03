@@ -54,6 +54,7 @@ flags.DEFINE_string(
     "ones",
     "Feature type for bh shapes identity ~ all unique, ones ~ all 1",
 )
+flags.DEFINE_string("graph_type", "bashapes", "graph type to generate")
 flags.DEFINE_string("save_prefix", "bashapes", "prefix to use for save files")
 
 model_str = FLAGS.model

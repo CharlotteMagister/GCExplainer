@@ -74,13 +74,42 @@ def house():
     return edges, labels
 
 
+def gen_ring(len):
+    sources = np.arange(0, len)
+    targets = np.concatenate((np.arange(1, len), np.array([0])))
+
+    print(sources.shape)
+    print(targets.shape)
+
+    edges = np.vstack(
+        (
+            np.concatenate([sources, targets]),
+            np.concatenate([targets, sources]),
+        )
+    ).transpose()
+
+    labels = np.zeros(len)
+
+    G = nx.Graph()
+    G.add_edges_from(edges)
+    # nx.draw(G)
+    return G
+
+
 # Based on pytorch geometric implementation
 def bhshapes():
     # Build the Barabasi-Albert graph:
     num_nodes = FLAGS.num_bh_nodes
     random.seed(1234)
     np.random.seed(1234)
-    ba_graph = nx.barabasi_albert_graph(num_nodes, 1)
+
+    if FLAGS.graph_type == "bashapes":
+        ba_graph = nx.barabasi_albert_graph(num_nodes, 1)
+    elif FLAGS.graph_type == "ring":
+        ba_graph = gen_ring(num_nodes)
+    else:
+        print("NO GRAPH TYPE SPECIFIED")
+        exit(1)
     node_labels = [0 for _ in range(num_nodes)]
 
     # Select nodes to connect shapes:
